@@ -1,63 +1,130 @@
 ﻿using APITracker.Data.DTO;
-using APITracker.Models;
+using APITracker.Entities;
+using APITracker.Repositories;
 using AutoMapper;
-using System;
+using Microsoft.AspNetCore.Mvc;
 using System.Diagnostics;
 using System.Net;
-using System.Net.Http;
-using System.Runtime.CompilerServices;
-using System.Web.Http;
+using System.Text;
+using static System.Net.WebRequestMethods;
 
 namespace APITracker.Controllers;
 
-public class StatusController : ApiController
+[ApiController]
+[Route("")]
+public class StatusController : Controller
 {
     private readonly IMapper _mapper;
+    private readonly IEnderecoApiRepository _enderecoApiRepository;
 
-    public StatusController(IMapper mapper)
+    public StatusController(IMapper mapper, IEnderecoApiRepository enderecoApiRepository)
     {
         _mapper = mapper;
+        _enderecoApiRepository = enderecoApiRepository;
     }
-    [HttpGet]
-    public IHttpActionResult VerificarStatus(string endereco)
+
+    [HttpPost]
+    [Route("api/status/realtime")]
+    public IActionResult RegistrarStatusRealTime([FromQuery] RequisicaoDTO requisicaoDTO)
     {
         try
         {
-            Stopwatch stopwatch = new Stopwatch();
+            using HttpClient client = new();
+
+            client.Timeout = TimeSpan.FromMinutes(requisicaoDTO.TimeOutEmMinutos);
+
+            Stopwatch stopwatch = new();
             stopwatch.Start();
 
-            using (HttpClient client = new HttpClient())
+            HttpResponseMessage response = null;
+
+            if (requisicaoDTO.Method.Equals("POST", StringComparison.OrdinalIgnoreCase))
             {
-                HttpResponseMessage response = client.GetAsync(endereco).Result;
-                HttpStatusCode statusCode = response.StatusCode;
+                StringContent json = new(
+                    content: requisicaoDTO.Body,
+                    encoding: Encoding.UTF8,
+                    mediaType: "application/json");
 
-                stopwatch.Stop();
-                TimeSpan tempoDuracao = stopwatch.Elapsed;
-
-                //Requisicao requisicao = ObterRequisicaoDoBancoDeDados();
-
-                RequisicaoDTO requisicaoDTO = _mapper.Map<RequisicaoDTO>(endereco);
-
-                if (tempoDuracao > TimeSpan.FromSeconds(10))
-                {
-                    return Ok(new { StatusCode = statusCode, Duracao = tempoDuracao, Mensagem = "A requisição demorou mais de 10 segundos." });
-                }
-
-                if (tempoDuracao > TimeSpan.FromSeconds(15))
-                {
-                    return Ok(new { StatusCode = statusCode, Duracao = tempoDuracao, Mensagem = "A requisição demorou mais de 15 segundos." });
-                }
-                if (tempoDuracao > TimeSpan.FromSeconds(60))
-                {
-                    return Ok(new { StatusCode = statusCode, Duracao = tempoDuracao, Mensagem = "A requisição demorou mais de 60 segundos." });
-                }
-
-                return Ok(new { StatusCode = statusCode, Duracao = tempoDuracao });
+                response = client.PostAsync(requisicaoDTO.Endereco, json).Result;
             }
+            else if (requisicaoDTO.Method.Equals("GET", StringComparison.OrdinalIgnoreCase))
+            {
+                response = client.GetAsync(requisicaoDTO.Endereco).Result;
+            }
+
+            stopwatch.Stop();
+
+            TimeSpan duration = stopwatch.Elapsed;
+
+            HttpStatusCode statusCode = response.StatusCode;
+
+            string error = string.Empty;
+
+            if (statusCode == HttpStatusCode.BadRequest || statusCode == HttpStatusCode.InternalServerError)
+            {
+                error = response.Content.ReadAsStringAsync().Result;
+            }
+
+            return Ok(new
+            {
+                StatusCode = statusCode,
+                Duracao = duration.Seconds,
+                Error = error
+            });
         }
         catch (Exception ex)
         {
-            return InternalServerError(ex);
+            throw new Exception(ex.Message);
+        }
+    }
+
+
+    [HttpPost]
+    [Route("api/status")]
+    public async Task<IActionResult> RegistrarStatus([FromQuery] RequisicaoDTO requisicaoDTO)
+    {
+        try
+        {
+            EnderecoApi enderecoApi = _mapper.Map<EnderecoApi>(requisicaoDTO);
+            await _enderecoApiRepository.Incluir(enderecoApi);
+            return Ok();
+        }
+        catch (Exception ex)
+        {
+            throw new Exception(ex.Message);
+        }
+    }
+
+
+    [HttpGet]
+    [Route("api/status")]
+    public async Task<IActionResult> VerificarStatus()
+    {
+        try
+        {
+            return Ok(_mapper.Map<IEnumerable<StatusDTO>>(await _enderecoApiRepository.BuscarTodos()));
+        }
+        catch (Exception ex)
+        {
+            throw new Exception(ex.Message);
+        }
+    }
+
+
+    [HttpGet]
+    [Route("api/status/ambiente")]
+    public async Task<IActionResult> VerificarStatusPorAmbiente(string ambiente)
+    {
+        try
+        {
+
+            var enderecos = await _enderecoApiRepository.BuscarTodosComPesquisa(c => c.Ambiente == ambiente);
+
+            return Ok(_mapper.Map<IEnumerable<StatusDTO>>(enderecos));
+        }
+        catch (Exception ex)
+        {
+            throw new Exception(ex.Message);
         }
     }
 }
