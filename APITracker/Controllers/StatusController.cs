@@ -1,5 +1,6 @@
 ﻿using APITracker.Data.DTO;
 using APITracker.Entities;
+using APITracker.Enums;
 using APITracker.Repositories;
 using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
@@ -25,52 +26,58 @@ public class StatusController : Controller
 
     [HttpPost]
     [Route("api/status/realtime")]
-    public IActionResult RegistrarStatusRealTime([FromQuery] RequisicaoDTO requisicaoDTO)
+    public async Task<IActionResult> RegistrarStatusRealTime()
     {
         try
         {
-            using HttpClient client = new();
+            IEnumerable<EnderecoApi> enderecos = await _enderecoApiRepository.BuscarTodos();
 
-            client.Timeout = TimeSpan.FromMinutes(requisicaoDTO.TimeOutEmMinutos);
-
-            Stopwatch stopwatch = new();
-            stopwatch.Start();
-
-            HttpResponseMessage response = null;
-
-            if (requisicaoDTO.Method.Equals("POST", StringComparison.OrdinalIgnoreCase))
+            foreach (EnderecoApi endereco in enderecos)
             {
-                StringContent json = new(
-                    content: requisicaoDTO.Body,
-                    encoding: Encoding.UTF8,
-                    mediaType: "application/json");
+                using HttpClient client = new();
 
-                response = client.PostAsync(requisicaoDTO.Endereco, json).Result;
+                client.Timeout = endereco.TimeOutEmMinutos <= 0 ? TimeSpan.FromSeconds(20) : TimeSpan.FromMinutes(endereco.TimeOutEmMinutos);
+
+                Stopwatch stopwatch = new();
+                stopwatch.Start();
+
+                HttpResponseMessage response = null;
+
+                if (endereco.Method.Equals(Method.POST))
+                {
+                    StringContent json = new(
+                        content: endereco.Body,
+                        encoding: Encoding.UTF8,
+                        mediaType: "application/json");
+
+                    response = client.PostAsync(endereco.Endereco, json).Result;
+                }
+                else if (endereco.Method.Equals(Method.GET))
+                {
+                    response = client.GetAsync(endereco.Endereco).Result;
+                }
+
+                stopwatch.Stop();
+
+                TimeSpan duration = stopwatch.Elapsed;
+
+                HttpStatusCode statusCode = response.StatusCode;
+
+                string error = string.Empty;
+
+                if (statusCode == HttpStatusCode.BadRequest || statusCode == HttpStatusCode.InternalServerError)
+                {
+                    error = response.Content.ReadAsStringAsync().Result;
+                }
+
+                endereco.StatusCode = (int)statusCode;
+                endereco.TimeOutEmMinutos = duration.Seconds;
+                endereco.Error = error;
+
+                await _enderecoApiRepository.Alterar(endereco);
             }
-            else if (requisicaoDTO.Method.Equals("GET", StringComparison.OrdinalIgnoreCase))
-            {
-                response = client.GetAsync(requisicaoDTO.Endereco).Result;
-            }
 
-            stopwatch.Stop();
-
-            TimeSpan duration = stopwatch.Elapsed;
-
-            HttpStatusCode statusCode = response.StatusCode;
-
-            string error = string.Empty;
-
-            if (statusCode == HttpStatusCode.BadRequest || statusCode == HttpStatusCode.InternalServerError)
-            {
-                error = response.Content.ReadAsStringAsync().Result;
-            }
-
-            return Ok(new
-            {
-                StatusCode = statusCode,
-                Duracao = duration.Seconds,
-                Error = error
-            });
+            return Ok();
         }
         catch (Exception ex)
         {
@@ -80,8 +87,8 @@ public class StatusController : Controller
 
 
     [HttpPost]
-    [Route("api/status")]
-    public async Task<IActionResult> RegistrarStatus([FromQuery] RequisicaoDTO requisicaoDTO)
+    [Route("api/inserir")]
+    public async Task<IActionResult> RegistrarStatus([FromBody] RequisicaoDTO requisicaoDTO)
     {
         try
         {
@@ -113,7 +120,7 @@ public class StatusController : Controller
 
     [HttpGet]
     [Route("api/status/ambiente")]
-    public async Task<IActionResult> VerificarStatusPorAmbiente(string ambiente)
+    public async Task<IActionResult> VerificarStatusPorAmbiente(Ambiente ambiente)
     {
         try
         {

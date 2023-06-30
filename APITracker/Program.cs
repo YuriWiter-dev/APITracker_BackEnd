@@ -7,7 +7,39 @@ using Microsoft.Extensions.Configuration;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
+var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
+
 // Add services to the container.
+//builder.Services.AddCors(option =>
+//{
+//    option.AddPolicy("AllOrigins",
+//        builder =>
+//        {
+//            builder.AllowAnyHeader()
+//            .AllowAnyOrigin()
+//            .AllowAnyMethod();
+//        });
+//});
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(name: MyAllowSpecificOrigins,
+                      policy =>
+                      {
+                          policy.AllowAnyOrigin();
+                      });
+});
+
+builder.Services.AddCors(option =>
+{
+    option.AddPolicy("AllOrigins",
+        builder =>
+        {
+            builder.AllowAnyHeader()
+            .AllowAnyOrigin()
+            .AllowAnyMethod();
+        });
+});
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -18,6 +50,7 @@ builder.Services.AddAutoMapper(x => x.AddProfile(new RequisicaoProfile()));
 builder.Services.AddScoped<IBaseRepositorio, BaseRepositorio>();
 
 builder.Services.AddScoped<IEnderecoApiRepository, EnderecoApiRepository>();
+
 
 
 builder.Services.AddEntityFrameworkSqlServer().AddDbContext<BaseContext>((serviceProvider, dbContextBuilder) =>
@@ -39,5 +72,6 @@ app.UseHttpsRedirection();
 app.UseAuthorization();
 
 app.MapControllers();
+app.UseCors("AllOrigins");
 
 app.Run();

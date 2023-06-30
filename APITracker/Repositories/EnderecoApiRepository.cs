@@ -12,6 +12,7 @@ namespace APITracker.Repositories
         Task<EnderecoApi> BuscarComPesquisa(Expression<Func<EnderecoApi, bool>> expression); 
         Task<IEnumerable<EnderecoApi>> BuscarTodos();
         Task<IEnumerable<EnderecoApi>> BuscarTodosComPesquisa(Expression<Func<EnderecoApi, bool>> expression);
+        Task Alterar(EnderecoApi entidade);
     }
 
     public class EnderecoApiRepository : BaseRepositorio, IEnderecoApiRepository
@@ -30,6 +31,7 @@ namespace APITracker.Repositories
             await SalvarMudancas();
             return obj.Entity.Id;
         }
+
         public virtual async Task<EnderecoApi> BuscarPorId(int id)
         {
             return await Buscar(x => x.Id == id).FirstOrDefaultAsync();
@@ -55,5 +57,11 @@ namespace APITracker.Repositories
             return await Buscar(expression).ToListAsync();
         }
 
+        public async Task Alterar(EnderecoApi entidade)
+        {
+            await IniciarTransaction();
+            _context.Entry(entidade).State = EntityState.Modified;
+            await SalvarMudancas();
+        }
     }
 }

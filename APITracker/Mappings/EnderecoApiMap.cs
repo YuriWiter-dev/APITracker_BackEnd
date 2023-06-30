@@ -20,8 +20,6 @@ namespace APITracker.Mappings
             builder.Property(p => p.Error)
                 .HasMaxLength(4000);
 
-            builder.Property(p => p.Method).HasMaxLength(6);
-
             builder.Property(p => p.Body).HasMaxLength(4000);
         }
     }

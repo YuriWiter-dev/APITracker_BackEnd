@@ -1,4 +1,6 @@
-﻿namespace APITracker.Data.DTO;
+﻿using APITracker.Enums;
+
+namespace APITracker.Data.DTO;
 
 public class RequisicaoDTO
 {
@@ -6,6 +8,8 @@ public class RequisicaoDTO
     public string Descricao { get; set; }
     public string Endereco { get; set; }
     public int TimeOutEmMinutos { get; set; }
-    public string Method { get; set; }
+    public Method Method { get; set; }
     public string Body { get; set; } = string.Empty;
+    public Ambiente Ambiente { get; set; }
+    public Sistema Sistema { get; set; }
 }
