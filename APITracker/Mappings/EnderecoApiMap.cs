@@ -18,6 +18,7 @@ namespace APITracker.Mappings
             builder.Property(p => p.Endereco).HasMaxLength(200);
 
             builder.Property(p => p.Error)
+                .HasDefaultValue("")
                 .HasMaxLength(4000);
 
             builder.Property(p => p.Body).HasMaxLength(4000);

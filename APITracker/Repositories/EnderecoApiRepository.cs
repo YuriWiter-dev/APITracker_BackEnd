@@ -60,7 +60,7 @@ namespace APITracker.Repositories
         public async Task Alterar(EnderecoApi entidade)
         {
             await IniciarTransaction();
-            _context.Entry(entidade).State = EntityState.Modified;
+            _context.Entry(entidade).State = EntityState.Detached;
             await SalvarMudancas();
         }
     }

@@ -8,8 +8,8 @@ namespace APITracker.Entities
         public string Descricao { get; set; }
         public string Endereco { get; set; }
         public int StatusCode { get; set; }
-        public string Error { get; set; }
-        public int TimeOutEmMinutos { get; set; }
+        public string Error { get; set; } = string.Empty;
+        public double TimeOutEmMinutos { get; set; }
         public Method Method { get; set; }
         public string Body { get; set; }
         public Ambiente Ambiente { get; set; }
